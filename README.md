@@ -1,2 +1,3 @@
 # wgpu-spielerei
-Kunnen we cross-platform met WGPU?
+We kunen crossplatform met WGPU!
+![It's Alive](screen.png)
