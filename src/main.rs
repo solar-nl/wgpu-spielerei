@@ -8,6 +8,7 @@ use winit::{
 
 use std::{
     time::Instant,
+    io::BufReader,
 };
 
 
@@ -20,42 +21,42 @@ struct Uniforms {
 }
 
  fn main() {
-    env_logger::init(); // Necessary for logging within WGPU
-    let event_loop = EventLoop::new(); // Loop provided by winit for handling window events
-    let window = WindowBuilder::new()
-    .with_title("Solar Assembly 2024 Winner Demo")
-    .with_inner_size(winit::dpi::LogicalSize::new(960.0, 540.0))
-    .build(&event_loop).unwrap();
-
-    let instance = wgpu::Instance::new(wgpu::Backends::all());
-    let surface = unsafe { instance.create_surface(&window) };
-    let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
-        power_preference: wgpu::PowerPreference::default(),
-        compatible_surface: Some(&surface),
-        force_fallback_adapter: false,
-    }))
-    .unwrap();
-
-    let (device, queue) = pollster::block_on(adapter.request_device(
-        &wgpu::DeviceDescriptor {
-            label: None,
-            features: wgpu::Features::empty(),
-            limits: wgpu::Limits::default(),
-        },
-        None, // Trace path
-    ))
-    .unwrap();
-
-    let size = window.inner_size();
-    let config = SurfaceConfiguration {
-       usage: TextureUsages::RENDER_ATTACHMENT,
-       format: surface.get_supported_formats(&adapter)[0],
-       width: size.width,
-       height: size.height,
-       alpha_mode: CompositeAlphaMode::Auto,
-       present_mode: PresentMode::Fifo, 
-     };
-     surface.configure(&device, &config);
+     env_logger::init(); // Necessary for logging within WGPU
+     let event_loop = EventLoop::new(); // Loop provided by winit for handling window events
+     let window = WindowBuilder::new()
+     .with_title("Solar Assembly 2024 Winner Demo")
+     .with_inner_size(winit::dpi::LogicalSize::new(960.0, 540.0))
+     .build(&event_loop).unwrap();
+ 
+     let instance = wgpu::Instance::new(wgpu::Backends::all());
+     let surface = unsafe { instance.create_surface(&window) };
+     let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
+         power_preference: wgpu::PowerPreference::default(),
+         compatible_surface: Some(&surface),
+         force_fallback_adapter: false,
+     }))
+     .unwrap();
+ 
+     let (device, queue) = pollster::block_on(adapter.request_device(
+         &wgpu::DeviceDescriptor {
+             label: None,
+             features: wgpu::Features::empty(),
+             limits: wgpu::Limits::default(),
+         },
+         None, // Trace path
+     ))
+     .unwrap();
+ 
+     let size = window.inner_size();
+     let config = SurfaceConfiguration {
+        usage: TextureUsages::RENDER_ATTACHMENT,
+        format: surface.get_supported_formats(&adapter)[0],
+        width: size.width,
+        height: size.height,
+        alpha_mode: CompositeAlphaMode::Auto,
+        present_mode: PresentMode::Fifo, 
+      };
+      surface.configure(&device, &config);
  
     let vertex_shader = device.create_shader_module(ShaderModuleDescriptor {
         label: None,
@@ -121,12 +122,17 @@ struct Uniforms {
         depth_stencil: None,
         multisample: MultisampleState::default(),
         multiview: None,
-    });
+      });
 
-    // Opens the window and starts processing events
-    event_loop.run(move |event, _, control_flow| {
+      // Audio goes here
+      let (_stream, stream_handle) = rodio::OutputStream::try_default().unwrap();
+      let file = std::fs::File::open("music.mp3").unwrap();
+      let music = stream_handle.play_once(BufReader::new(file)).unwrap();
+
+     // Opens the window and starts processing events
+     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
-
+    
         match event {
             Event::RedrawRequested(_) => {
                 uniforms.time = time.elapsed().as_secs_f32();
@@ -159,7 +165,7 @@ struct Uniforms {
                 // submit will accept anything that implements IntoIter
                 queue.submit(std::iter::once(encoder.finish()));
                 output.present();
-            },
+              },
             // New
             Event::MainEventsCleared => {
                 window.request_redraw();
@@ -172,15 +178,15 @@ struct Uniforms {
             Event::WindowEvent {
                  event: WindowEvent::KeyboardInput { input, .. },
                  window_id,
-            } if window_id == window.id() => {
+             } if window_id == window.id() => {
                 /*
                 * Close on Escape
                 */
-                if input.virtual_keycode == Some(VirtualKeyCode::Escape) {
-                    *control_flow = ControlFlow::Exit
-                }
-            }
+                 if input.virtual_keycode == Some(VirtualKeyCode::Escape) {
+                     *control_flow = ControlFlow::Exit
+                 }
+             }
             _ => (),
         }
     });
-}
+ }
