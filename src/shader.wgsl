@@ -31,6 +31,7 @@ struct Uniforms {
 };
 
 let epsilon = 0.0001;
+let pi = 3.1415926539;
 
 
 @group(0) @binding(0) var<uniform> u: Uniforms;
@@ -93,6 +94,40 @@ fn raymarch(origin: vec3<f32>, direction: vec3<f32>) -> f32 {
     return 0.0;
 }
 
+fn rotate2D(plane: vec2<f32>, angle: f32) -> vec2<f32> {
+    return cos(angle) * plane + sin(angle) * vec2<f32>(plane.y, -plane.x);
+}
+
+fn sdTriangleIsosceles(pos: vec2<f32>, q: vec2<f32>) -> f32 {
+    var p = pos;
+    p.x = abs(p.x);
+    var a: vec2<f32> = p - q * clamp(dot(p, q) / dot(q, q), 0.0, 1.0);
+    var b: vec2<f32> = p - q * vec2(clamp(p.x / q.x, 0.0, 1.0), 1.0);
+    var s: f32 = -sign(q.y);
+    var d: vec2<f32> = min(vec2<f32>(dot(a, a), s * (p.x * q.y - p.y * q.x)),
+                      vec2<f32>(dot(b, b), s * (p.y - q.y)));
+    return -sqrt(d.x) * sign(d.y);
+}
+
+fn solar_logo(pos: vec2<f32>) -> f32 {
+    var p = rotate2D(pos, -u.time * 0.18);
+
+    var outer = length(pos) - 0.3;
+    var inner = length(pos) - 0.24;
+    let ring = max(outer, -inner);   
+
+    var tri = 10.0;
+    let offset = vec2<f32>(0.0, 0.447);
+ 
+    let angle = length(p + offset);
+    for (var i: i32 = 0; i < 8; i++) {
+        p = rotate2D(p, 8.0 * pi / 32.0);
+        tri = min(tri, sdTriangleIsosceles(rotate2D(p + offset, length(p - vec2<f32>(0.2))), vec2<f32>(0.02, 0.23)));
+    }
+    return min(tri, ring);
+    
+}
+
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let uv = (in.tex_coords.xy * u.resolution.xy * 2.0 - u.resolution.xy) / u.resolution.x;
@@ -120,6 +155,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         color *= 0.7 + ambient * c2;
     }
 
-
+    var logo = solar_logo(uv * 1.5);
+    if (logo < 0.0) {
+        color += vec3<f32>(0.5, 0.5, 0.5);
+    }
     return vec4<f32>(color, 1.);
 }
