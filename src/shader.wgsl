@@ -27,14 +27,19 @@ struct VertexOutput {
 
 struct Uniforms {
     resolution : vec2<f32>,
-    time : f32
+    time : f32,
+    i_pass : i32,
 };
 
 let epsilon = 0.0001;
 let pi = 3.1415926539;
 
-
 @group(0) @binding(0) var<uniform> u: Uniforms;
+@group(0) @binding(1) var samp : sampler;
+@group(0) @binding(2) var tex_0: texture_2d<f32>;
+@group(0) @binding(3) var tex_1: texture_2d<f32>;
+@group(0) @binding(4) var tex_2: texture_2d<f32>;
+@group(0) @binding(5) var tex_3: texture_2d<f32>;
 
 fn smin(a: f32, b: f32, k: f32) -> f32 {
     let h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0);
@@ -131,33 +136,45 @@ fn solar_logo(pos: vec2<f32>) -> f32 {
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let uv = (in.tex_coords.xy * u.resolution.xy * 2.0 - u.resolution.xy) / u.resolution.x;
-    
-    let ro = vec3<f32>(0.1 * sin(u.time * 0.4), 0.1 * cos(u.time * 0.6), -7.0);
-    let rd = normalize(vec3<f32>(uv, 0.0) - ro);
-
-    var dist = raymarch(ro, rd);
-
     var color = vec3<f32>(0.0);
-    if (dist > 0.0) {
-        var p = ro + dist * rd;
-        var N = get_normal(ro + dist * rd);
-        var L = -rd;
-        
-        var c0 = vec3<f32>(1.0,0.2,0.3) * N.y;
-        color = c0;
-        
-        var c1 = vec3<f32>(0.4,1.0,1.0) * -N.z;
-        color += .5 * c1;
-        
-        var c2 = vec3<f32>(0.25,0.25,1.0);
-        
-        var ambient = 0.5 + 0.45 * cos(dist * 7.0);
-        color *= 0.7 + ambient * c2;
-    }
+    /*if (u.i_pass == 0) {
+        color = vec3<f32>(1.0, 0.0, 1.0);
+    }*/
+    /*else if (u.i_pass == 1)*/ {
+        let ro = vec3<f32>(0.1 * sin(u.time * 0.4), 0.1 * cos(u.time * 0.6), -7.0);
+        let rd = normalize(vec3<f32>(uv, 0.0) - ro);
 
-    var logo = solar_logo(uv * 1.5);
-    if (logo < 0.0) {
-        color += vec3<f32>(0.5, 0.5, 0.5);
+        var dist = raymarch(ro, rd);
+
+        if (dist > 0.0) {
+            var p = ro + dist * rd;
+            var N = get_normal(ro + dist * rd);
+            var L = -rd;
+            
+            var c0 = vec3<f32>(1.0,0.2,0.3) * N.y;
+            color = c0;
+            
+            var c1 = vec3<f32>(0.4,1.0,1.0) * -N.z;
+            color += .5 * c1;
+            
+            var c2 = vec3<f32>(0.25,0.25,1.0);
+            
+            var ambient = 0.5 + 0.45 * cos(dist * 7.0);
+            color *= 0.7 + ambient * c2;
+        }
     }
+    /*else if (u.i_pass == 2)*/ {
+        var logo = solar_logo(uv * 1.5);
+        if (logo < 0.0) {
+            color += vec3<f32>(0.5, 0.5, 0.5);
+        }
+    }
+    /*else if (u.i_pass == 3) {
+        color = textureSample(tex, samp, in.tex_coords.xy).rgb;
+    }*/
+
+    let tex_color: vec4<f32> = textureSample(tex_0, samp, in.tex_coords);
+
+   // return tex_color;
     return vec4<f32>(color, 1.);
 }
