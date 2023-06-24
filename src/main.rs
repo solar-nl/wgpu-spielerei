@@ -7,8 +7,12 @@ use winit::{
     window::WindowBuilder,
 };
 
+mod commandbuffer;
+use commandbuffer:: {Command,CommandBuffer};
+
 use std::{
     time::Instant,
+    time::Duration,
     io::BufReader,
 };
 
@@ -20,6 +24,25 @@ struct Uniforms {
     i_pass: i32,
 }
 
+fn handle_keyboard_input(input: KeyboardInput) -> Option<Command> {
+  if input.state == ElementState::Released {
+      match input.virtual_keycode {
+          Some(VirtualKeyCode::Escape) => Some(Command::Quit),
+          Some(VirtualKeyCode::J) => Some(Command::PlayReverse),
+          Some(VirtualKeyCode::K) => Some(Command::Pause),
+          Some(VirtualKeyCode::L) => Some(Command::PlayForward),
+          Some(VirtualKeyCode::Space) => Some(Command::Play),
+          Some(VirtualKeyCode::Grave) => Some(Command::DebugDraw),
+          _ => None,
+      }
+  } else {
+      None
+  }
+}
+
+// Use a fixed time step for  logic updates.
+const FIXED_TIME_STEP: Duration = Duration::from_millis(16);
+
  fn main() {
      env_logger::init(); // Necessary for logging within WGPU
      let event_loop = EventLoop::new(); // Loop provided by winit for handling window events
@@ -27,7 +50,12 @@ struct Uniforms {
      .with_title("Solar Assembly 2024 Winner Demo")
      .with_inner_size(winit::dpi::LogicalSize::new(960.0, 540.0))
      .build(&event_loop).unwrap();
- 
+
+     let mut frame_count = 0;
+     let mut command_buffer = CommandBuffer::new();
+
+     let mut last_update_time = Instant::now();
+
      let instance = wgpu::Instance::new(wgpu::Backends::all());
      let surface = unsafe { instance.create_surface(&window) };
      let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
@@ -249,6 +277,9 @@ struct Uniforms {
     
         match event {
             Event::RedrawRequested(_) => {
+                let now = Instant::now();
+                let _time_delta = now.duration_since(last_update_time);
+
                 uniforms.time = time.elapsed().as_secs_f32();
                 queue.write_buffer(&uniforms_buffer, 0, bytemuck::bytes_of(&uniforms));
 
@@ -288,25 +319,62 @@ struct Uniforms {
               },
             // New
             Event::MainEventsCleared => {
-                window.request_redraw();
+              while let Some(command) = command_buffer.next_command() {
+                  match command {
+                      Command::Quit => {
+                          println!("framecount: {}",frame_count);
+                          *control_flow = ControlFlow::Exit
+                      }
+                      Command::Play => {
+                          println!("Play");
+                          println!("framecount: {}",frame_count);
+                      }
+                      Command::DebugDraw => {
+                          println!("DebugDraw")
+                      }
+                      Command::Pause => {
+                          println!("Pause!")
+                      }
+                      Command::PlayForward => {
+                          println!("PlayForward!")
+                      }
+                      Command::PlayReverse => {
+                          println!("PlayReverse!")
+                      }
+                      //_ => ()
+                  }
+                  
+              }
+
+              let now = Instant::now();
+              let time_delta = now.duration_since(last_update_time);
+
+              if time_delta >= FIXED_TIME_STEP {
+                  // Update logic here.
+                  last_update_time = now;
+
+                  frame_count+=1;
+
+              }
+
+              window.request_redraw();
             }
 
             Event::WindowEvent {
-                event: WindowEvent::CloseRequested,
-                window_id,
-            } if window_id == window.id() => *control_flow = ControlFlow::Exit,
-            Event::WindowEvent {
-                 event: WindowEvent::KeyboardInput { input, .. },
-                 window_id,
-             } if window_id == window.id() => {
-                /*
-                * Close on Escape
-                */
-                 if input.virtual_keycode == Some(VirtualKeyCode::Escape) {
-                     *control_flow = ControlFlow::Exit
-                 }
-             }
-            _ => (),
+              event: WindowEvent::CloseRequested,
+              window_id,
+          } if window_id == window.id() => command_buffer.add_command(Command::Quit),
+          Event::WindowEvent {
+            event:
+                WindowEvent::KeyboardInput {input, .. },
+                ..
+        } => {
+            if let Some(command) = handle_keyboard_input(input) {
+                command_buffer.add_command(command);
+            }
         }
+        _ => (),
+        }
+        
     });
  }
