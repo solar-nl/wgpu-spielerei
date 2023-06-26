@@ -41,6 +41,19 @@ let pi = 3.1415926539;
 @group(0) @binding(4) var tex_2: texture_2d<f32>;
 @group(0) @binding(5) var tex_3: texture_2d<f32>;
 
+
+fn rotate2D(plane: vec2<f32>, angle: f32) -> vec2<f32> {
+    return cos(angle) * plane + sin(angle) * vec2(plane.y,-plane.x);
+}
+
+fn rotate3D(p: vec3<f32>, axis: vec3<f32>, angle: f32) -> vec3<f32> {
+	var a = cross(axis, p);        
+    var b = cross(a, axis);
+    
+	return b * cos(angle) + a * sin(angle) + axis * dot(p, axis);   
+}
+
+
 fn smin(a: f32, b: f32, k: f32) -> f32 {
     let h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0);
     return mix(b, a, h) - k * h * (1.0 - h);
@@ -52,7 +65,7 @@ fn sdSphere(pos: vec3<f32>, radius: f32) -> f32 {
 
 fn map(pos: vec3<f32>) -> f32 {
 
-    var p = pos;
+    var p = rotate3D(pos, vec3<f32>(0.0, 0.0, 1.0), u.time);
     p.z -= 4.0;
     var c = 0.8 * cos(u.time);
     let s = 0.2;
@@ -99,10 +112,6 @@ fn raymarch(origin: vec3<f32>, direction: vec3<f32>) -> f32 {
     return 0.0;
 }
 
-fn rotate2D(plane: vec2<f32>, angle: f32) -> vec2<f32> {
-    return cos(angle) * plane + sin(angle) * vec2<f32>(plane.y, -plane.x);
-}
-
 fn sdTriangleIsosceles(pos: vec2<f32>, q: vec2<f32>) -> f32 {
     var p = pos;
     p.x = abs(p.x);
@@ -133,14 +142,38 @@ fn solar_logo(pos: vec2<f32>) -> f32 {
     
 }
 
+fn rand(n: f32) -> f32 {return fract(sin(n) * 43758.5453123);}
+fn my_mod(x: f32, y: f32) -> f32 {return x - y * floor(x / y);}
+fn vhs(tex: texture_2d<f32>, samp: sampler, coords: vec2<f32>, amount: f32, spd: f32, t: f32) -> vec4<f32> { 
+    var scale = amount * 0.7314;
+    var uv = coords;
+    var inner = t * 33.14 * cos(spd * 6.28 + 0.4 * rand(scale));
+    var speed = floor(my_mod(inner, 128.0));
+    
+    var ln = 1.628*rand(speed * 0.5678) * 1.0;
+    var width = 1.33*rand(speed+t) * 0.25 * 1.0;    
+    var offset = 0.0;
+
+    uv.x += -0.00628 + 0.009*fract(ln);
+    uv.y -= -0.00428 + 0.008*fract(ln*ln);
+
+    var color: vec3<f32> = textureSample(tex, samp, uv).rgb;
+    var abberated = 0.00314*length(uv)+0.31415*abs(offset);
+    
+    color.r = textureSample(tex, samp, uv + abberated).r;  
+    color.g = textureSample(tex, samp, uv).g;
+    color.b = textureSample(tex, samp, uv - abberated).b;  
+
+    return vec4<f32>(color,length(color));
+}
+
+
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let uv = (in.tex_coords.xy * u.resolution.xy * 2.0 - u.resolution.xy) / u.resolution.x;
     var color = vec3<f32>(0.0);
-    /*if (u.i_pass == 0) {
-        color = vec3<f32>(1.0, 0.0, 1.0);
-    }*/
-    /*else if (u.i_pass == 1)*/ {
+    if (u.i_pass == 0) {
+
         let ro = vec3<f32>(0.1 * sin(u.time * 0.4), 0.1 * cos(u.time * 0.6), -7.0);
         let rd = normalize(vec3<f32>(uv, 0.0) - ro);
 
@@ -162,18 +195,20 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             var ambient = 0.5 + 0.45 * cos(dist * 7.0);
             color *= 0.7 + ambient * c2;
         }
-    }
-    /*else if (u.i_pass == 2)*/ {
+    
         var logo = solar_logo(uv * 1.5);
         if (logo < 0.0) {
             color += vec3<f32>(0.5, 0.5, 0.5);
         }
+    
     }
-    /*else if (u.i_pass == 3) {
-        color = textureSample(tex, samp, in.tex_coords.xy).rgb;
-    }*/
 
-    let tex_color: vec4<f32> = textureSample(tex_0, samp, in.tex_coords);
+
+    else if (u.i_pass == 1) {
+        let tex_color: vec4<f32> = vhs(tex_0, samp, vec2<f32>(1.0, -1.0) * in.tex_coords.xy, 0.1, 3.0, u.time);
+   
+        color = tex_color.rgb;
+    }
 
    // return tex_color;
     return vec4<f32>(color, 1.);

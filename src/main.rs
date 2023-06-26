@@ -1,4 +1,3 @@
-
 use wgpu::{*, util::{BufferInitDescriptor, DeviceExt}};
 
 use winit::{
@@ -7,14 +6,14 @@ use winit::{
     window::WindowBuilder,
 };
 
-mod commandbuffer;
-use commandbuffer:: {Command,CommandBuffer};
-
 use std::{
     time::Instant,
     time::Duration,
     io::BufReader,
 };
+
+mod commandbuffer;
+use commandbuffer:: {Command,CommandBuffer};
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -50,10 +49,9 @@ const FIXED_TIME_STEP: Duration = Duration::from_millis(16);
      .with_title("Solar Assembly 2024 Winner Demo")
      .with_inner_size(winit::dpi::LogicalSize::new(960.0, 540.0))
      .build(&event_loop).unwrap();
-
+ 
      let mut frame_count = 0;
      let mut command_buffer = CommandBuffer::new();
-
      let mut last_update_time = Instant::now();
 
      let instance = wgpu::Instance::new(wgpu::Backends::all());
@@ -86,14 +84,26 @@ const FIXED_TIME_STEP: Duration = Duration::from_millis(16);
       };
       surface.configure(&device, &config);
 
+      let texture_size = 1024u32;
       let texture_descriptor = wgpu::TextureDescriptor {
-        size: wgpu::Extent3d::default(),
+        size: wgpu::Extent3d{width: window.inner_size().width, height: window.inner_size().height, depth_or_array_layers: 1},
         mip_level_count: 1,
         sample_count: 1,
         dimension: wgpu::TextureDimension::D2,
-        format: wgpu::TextureFormat::Rgba8UnormSrgb,
-        usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+        format: config.format.into(),//wgpu::TextureFormat::Bgra8UnormSrgb,
+        usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_DST | wgpu::TextureUsages::COPY_SRC,
         label: None,
+      };
+
+      let texture_view_descriptor: TextureViewDescriptor = wgpu::TextureViewDescriptor {
+        label: None,
+        format: config.format.into(),//Some(wgpu::TextureFormat::Bgra8UnormSrgb),
+        dimension: Some(wgpu::TextureViewDimension::D2),
+        aspect: wgpu::TextureAspect::All,
+        base_mip_level: 0,
+        mip_level_count: None,
+        base_array_layer: 0,
+        array_layer_count: None,
       };
 
     let rt_0 = device.create_texture(&wgpu::TextureDescriptor {
@@ -113,10 +123,10 @@ const FIXED_TIME_STEP: Duration = Duration::from_millis(16);
       ..texture_descriptor
     });
     
-    let rt_0_view = rt_0.create_view(&wgpu::TextureViewDescriptor::default());
-    let rt_1_view = rt_1.create_view(&wgpu::TextureViewDescriptor::default());
-    let rt_2_view = rt_2.create_view(&wgpu::TextureViewDescriptor::default());
-    let rt_3_view = rt_3.create_view(&wgpu::TextureViewDescriptor::default());
+    let rt_0_view = rt_0.create_view(&Default::default());
+    let rt_1_view = rt_1.create_view(&Default::default());
+    let rt_2_view = rt_2.create_view(&Default::default());
+    let rt_3_view = rt_3.create_view(&texture_view_descriptor);
 
     let render_texture_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
       label: None,
@@ -125,7 +135,7 @@ const FIXED_TIME_STEP: Duration = Duration::from_millis(16);
       address_mode_w: wgpu::AddressMode::Repeat,
       mag_filter: wgpu::FilterMode::Linear,
       min_filter: wgpu::FilterMode::Linear,
-      mipmap_filter: wgpu::FilterMode::Linear,
+      mipmap_filter: wgpu::FilterMode::Nearest,
       ..Default::default()
     });
      
@@ -221,8 +231,8 @@ const FIXED_TIME_STEP: Duration = Duration::from_millis(16);
         },
           wgpu::BindGroupEntry {
               binding: 2,
-              resource: wgpu::BindingResource::TextureView(&rt_0_view),
-          },
+              resource: wgpu::BindingResource::TextureView(&rt_1_view),
+          }, 
           wgpu::BindGroupEntry {
               binding: 3,
               resource: wgpu::BindingResource::TextureView(&rt_1_view),
@@ -234,18 +244,50 @@ const FIXED_TIME_STEP: Duration = Duration::from_millis(16);
         wgpu::BindGroupEntry {
             binding: 5,
             resource: wgpu::BindingResource::TextureView(&rt_3_view),
-        },
+        }, 
       ],
       layout: &bind_group_layout,
       label: Some("bind group"),
   });
-  
-    let render_pipeline_layout =
-    device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-        label: None,
-        bind_group_layouts: &[&bind_group_layout],
-        push_constant_ranges: &[],
-    });
+
+  let bind_group_rt = device.create_bind_group(&wgpu::BindGroupDescriptor {
+    entries: &[
+      wgpu::BindGroupEntry {
+        binding: 0,
+        resource: uniforms_buffer.as_entire_binding(),
+      },
+      wgpu::BindGroupEntry {
+        binding: 1,
+        resource: wgpu::BindingResource::Sampler(&render_texture_sampler),
+      },
+        wgpu::BindGroupEntry {
+            binding: 2,
+            resource: wgpu::BindingResource::TextureView(&rt_0_view),
+        }, 
+        wgpu::BindGroupEntry {
+            binding: 3,
+            resource: wgpu::BindingResource::TextureView(&rt_1_view),
+        },
+        wgpu::BindGroupEntry {
+          binding: 4,
+          resource: wgpu::BindingResource::TextureView(&rt_2_view),
+      },
+      wgpu::BindGroupEntry {
+          binding: 5,
+          resource: wgpu::BindingResource::TextureView(&rt_3_view),
+      }, 
+    ],
+    layout: &bind_group_layout,
+    label: Some("bind group rt"),
+});
+
+
+  let render_pipeline_layout =
+  device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+      label: None,
+      bind_group_layouts: &[&bind_group_layout],
+      push_constant_ranges: &[],
+  });
 
     let render_pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
         label: None,
@@ -258,11 +300,19 @@ const FIXED_TIME_STEP: Duration = Duration::from_millis(16);
         fragment: Some(FragmentState {
           module: &fragment_shader,
           entry_point: "fs_main",
-          targets: &[Some(config.format.into())],
-        }),
+          targets: &[Some(wgpu::ColorTargetState {
+            format: config.format.into(),
+            blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+            write_mask: wgpu::ColorWrites::ALL,
+        })],        
+      }),
         primitive: PrimitiveState::default(),
         depth_stencil: None,
-        multisample: MultisampleState::default(),
+        multisample: wgpu::MultisampleState {
+            count: 1,
+            mask: !0,
+            alpha_to_coverage_enabled: false,
+        },  
         multiview: None,
       });
 
@@ -286,14 +336,14 @@ const FIXED_TIME_STEP: Duration = Duration::from_millis(16);
                 let output = surface.get_current_texture().unwrap();
                 let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
                 let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("Render Encoder"),
+                    label: Some("Render Encode 1r"),
                 });
      
                 {
                     let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
                         label: None,
                         color_attachments: &[Some(RenderPassColorAttachment {
-                          view: &view, 
+                          view: &rt_0_view, 
                           resolve_target: None,
                           ops: Operations {
                             load: LoadOp::Clear(Color::BLUE),
@@ -306,75 +356,102 @@ const FIXED_TIME_STEP: Duration = Duration::from_millis(16);
                       render_pass.set_bind_group(0, &bind_group, &[]);
                       
                       
-                      for i in 0..1 {
-                        uniforms.i_pass = i;
+                      /*for i in 0..1*/ {
+                        uniforms.i_pass = 0; // i
                         queue.write_buffer(&uniforms_buffer, 0, bytemuck::bytes_of(&uniforms));
                         render_pass.draw(0..3, 0..1);
                       }
                 }
-
-                // submit will accept anything that implements IntoIter
+ 
                 queue.submit(std::iter::once(encoder.finish()));
+                let mut encoder2 = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                  label: Some("Render Encoder 2"),
+                });
+
+                {
+                  let mut render_pass = encoder2.begin_render_pass(&RenderPassDescriptor {
+                      label: None,
+                      color_attachments: &[Some(RenderPassColorAttachment {
+                        view: &view, 
+                        resolve_target: None,
+                        ops: Operations {
+                          load: LoadOp::Clear(Color::BLACK),
+                          store: true,
+                        },
+                      })],
+                      depth_stencil_attachment: None,
+                    });                
+                    render_pass.set_pipeline(&render_pipeline);
+                    render_pass.set_bind_group(0, &bind_group_rt, &[]);
+                    
+                    
+                    /*for i in 1..2*/ {
+                      uniforms.i_pass = 1; // i
+                      queue.write_buffer(&uniforms_buffer, 0, bytemuck::bytes_of(&uniforms));
+                      render_pass.draw(0..3, 0..1);
+                    }
+              }
+
+                queue.submit(std::iter::once(encoder2.finish()));
                 output.present();
               },
-            // New
-            Event::MainEventsCleared => {
-              while let Some(command) = command_buffer.next_command() {
-                  match command {
-                      Command::Quit => {
-                          println!("framecount: {}",frame_count);
-                          *control_flow = ControlFlow::Exit
-                      }
-                      Command::Play => {
-                          println!("Play");
-                          println!("framecount: {}",frame_count);
-                      }
-                      Command::DebugDraw => {
-                          println!("DebugDraw")
-                      }
-                      Command::Pause => {
-                          println!("Pause!")
-                      }
-                      Command::PlayForward => {
-                          println!("PlayForward!")
-                      }
-                      Command::PlayReverse => {
-                          println!("PlayReverse!")
-                      }
-                      //_ => ()
-                  }
-                  
+              Event::MainEventsCleared => {
+                while let Some(command) = command_buffer.next_command() {
+                    match command {
+                        Command::Quit => {
+                            println!("framecount: {}",frame_count);
+                            *control_flow = ControlFlow::Exit
+                        }
+                        Command::Play => {
+                            println!("Play");
+                            println!("framecount: {}",frame_count);
+                        }
+                        Command::DebugDraw => {
+                            println!("DebugDraw")
+                        }
+                        Command::Pause => {
+                            println!("Pause!")
+                        }
+                        Command::PlayForward => {
+                            println!("PlayForward!")
+                        }
+                        Command::PlayReverse => {
+                            println!("PlayReverse!")
+                        }
+                        //_ => ()
+                    }
+                    
+                }
+  
+                let now = Instant::now();
+                let time_delta = now.duration_since(last_update_time);
+  
+                if time_delta >= FIXED_TIME_STEP {
+                    // Update logic here.
+                    last_update_time = now;
+  
+                    frame_count+=1;
+  
+                }
+  
+                window.request_redraw();
               }
-
-              let now = Instant::now();
-              let time_delta = now.duration_since(last_update_time);
-
-              if time_delta >= FIXED_TIME_STEP {
-                  // Update logic here.
-                  last_update_time = now;
-
-                  frame_count+=1;
-
-              }
-
-              window.request_redraw();
-            }
-
+  
+              Event::WindowEvent {
+                event: WindowEvent::CloseRequested,
+                window_id,
+            } if window_id == window.id() => command_buffer.add_command(Command::Quit),
             Event::WindowEvent {
-              event: WindowEvent::CloseRequested,
-              window_id,
-          } if window_id == window.id() => command_buffer.add_command(Command::Quit),
-          Event::WindowEvent {
-            event:
-                WindowEvent::KeyboardInput {input, .. },
-                ..
-        } => {
-            if let Some(command) = handle_keyboard_input(input) {
-                command_buffer.add_command(command);
-            }
-        }
-        _ => (),
-        }
-        
-    });
- }
+              event:
+                  WindowEvent::KeyboardInput {input, .. },
+                  ..
+          } => {
+              if let Some(command) = handle_keyboard_input(input) {
+                  command_buffer.add_command(command);
+              }
+          }
+          _ => (),
+          }
+          
+      });
+   }
