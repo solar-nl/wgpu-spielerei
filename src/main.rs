@@ -12,6 +12,7 @@ use std::{
     io::BufReader,
 };
 
+mod resource;
 mod commandbuffer;
 use commandbuffer:: {Command,CommandBuffer};
 
@@ -32,8 +33,10 @@ fn handle_keyboard_input(input: KeyboardInput) -> Option<Command> {
           Some(VirtualKeyCode::L) => Some(Command::PlayForward),
           Some(VirtualKeyCode::Space) => Some(Command::Play),
           Some(VirtualKeyCode::Grave) => Some(Command::DebugDraw),
+/* 
           Some(VirtualKeyCode::Up) => Some(Command::IncreaseVolume),
           Some(VirtualKeyCode::Down) => Some(Command::DecreaseVolume),
+*/
           _ => None,
       }
   } else {
@@ -88,7 +91,9 @@ const FIXED_TIME_STEP: Duration = Duration::from_millis(16);
       };
       surface.configure(&device, &config);
 
-      let texture_size = 1024u32;
+      let solar_logo_bytes = include_bytes!("solar_groot.jpg");
+      let solar_logo_texture =  resource::Texture::new(&device, &queue, solar_logo_bytes, Some("Solar Logo")).unwrap();
+
       let texture_descriptor = wgpu::TextureDescriptor {
         size: wgpu::Extent3d{width: window.inner_size().width, height: window.inner_size().height, depth_or_array_layers: 1},
         mip_level_count: 1,
@@ -145,12 +150,12 @@ const FIXED_TIME_STEP: Duration = Duration::from_millis(16);
      
     let vertex_shader = device.create_shader_module(ShaderModuleDescriptor {
         label: None,
-        source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
+        source: wgpu::ShaderSource::Wgsl(include_str!("not_menger.wgsl").into()),
     });
 
     let fragment_shader = device.create_shader_module(ShaderModuleDescriptor {
         label: None,
-        source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
+        source: wgpu::ShaderSource::Wgsl(include_str!("not_menger.wgsl").into()),
     });
 
     let mut uniforms = Uniforms { resolution: [size.width.clone() as _, size.height.clone() as _], time: 0., i_pass: 0 };
@@ -247,7 +252,7 @@ const FIXED_TIME_STEP: Duration = Duration::from_millis(16);
         },
         wgpu::BindGroupEntry {
             binding: 5,
-            resource: wgpu::BindingResource::TextureView(&rt_3_view),
+            resource: wgpu::BindingResource::TextureView(&solar_logo_texture.view),
         }, 
       ],
       layout: &bind_group_layout,
@@ -278,7 +283,7 @@ const FIXED_TIME_STEP: Duration = Duration::from_millis(16);
       },
       wgpu::BindGroupEntry {
           binding: 5,
-          resource: wgpu::BindingResource::TextureView(&rt_3_view),
+          resource: wgpu::BindingResource::TextureView(&solar_logo_texture.view),
       }, 
     ],
     layout: &bind_group_layout,
@@ -459,4 +464,4 @@ const FIXED_TIME_STEP: Duration = Duration::from_millis(16);
         }
         
     });
- }
+}

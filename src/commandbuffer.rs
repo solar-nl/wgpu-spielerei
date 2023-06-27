@@ -6,8 +6,10 @@ pub enum Command {
     PlayForward,
     PlayReverse,
     DebugDraw,
+/*
     IncreaseVolume,
     DecreaseVolume,
+*/
     Quit
 }
 
