@@ -3,7 +3,7 @@ use wgpu::{*, util::{BufferInitDescriptor, DeviceExt}};
 use winit::{
     event::*,
     event_loop::{ControlFlow, EventLoop},
-    window::WindowBuilder,
+    window::{WindowBuilder, Window},
 };
 
 use std::{
@@ -47,36 +47,42 @@ fn handle_keyboard_input(input: KeyboardInput) -> Option<Command> {
 // Use a fixed time step for  logic updates.
 const FIXED_TIME_STEP: Duration = Duration::from_millis(16);
 
+
+fn initialize_window(event_loop: &EventLoop<()>) -> Window {
+  WindowBuilder::new()
+    .with_title("Solar Assembly 2024 Winner Demo")
+    .with_inner_size(winit::dpi::LogicalSize::new(960.0, 540.0))
+    .build(event_loop).unwrap()
+}
+
+
  fn main() {
-     env_logger::init(); // Necessary for logging within WGPU
-     let event_loop = EventLoop::new(); // Loop provided by winit for handling window events
-     let window = WindowBuilder::new()
-     .with_title("Solar Assembly 2024 Winner Demo")
-     .with_inner_size(winit::dpi::LogicalSize::new(960.0, 540.0))
-     .build(&event_loop).unwrap();
+    env_logger::init(); // Necessary for logging within WGPU
+    let event_loop = EventLoop::new(); // Loop provided by winit for handling window events
+    let window = initialize_window(&event_loop);
  
-     let mut frame_count = 0;
-     let mut command_buffer = CommandBuffer::new();
-     let mut last_update_time = Instant::now();
+    let mut frame_count = 0;
+    let mut command_buffer = CommandBuffer::new();
+    let mut last_update_time = Instant::now();
 
-     let mut playback_volume: f32 = 1.0;
+    let mut _playback_volume: f32 = 1.0;
 
-     let instance = wgpu::Instance::new(wgpu::Backends::all());
-     let surface = unsafe { instance.create_surface(&window) };
-     let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
-         power_preference: wgpu::PowerPreference::default(),
-         compatible_surface: Some(&surface),
-         force_fallback_adapter: false,
-     }))
-     .unwrap();
- 
-     let (device, queue) = pollster::block_on(adapter.request_device(
-         &wgpu::DeviceDescriptor {
-             label: None,
-             features: wgpu::Features::empty(),
-             limits: wgpu::Limits::default(),
-         },
-         None, // Trace path
+    let instance = wgpu::Instance::new(wgpu::Backends::all());
+    let surface = unsafe { instance.create_surface(&window) };
+    let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
+        power_preference: wgpu::PowerPreference::default(),
+        compatible_surface: Some(&surface),
+        force_fallback_adapter: false, 
+    }))
+    .unwrap();
+    
+    let (device, queue) = pollster::block_on(adapter.request_device(
+        &wgpu::DeviceDescriptor {
+            label: None,
+            features: wgpu::Features::empty(),
+            limits: wgpu::Limits::default(),
+        },
+        None, // Trace path
      ))
      .unwrap();
  
@@ -87,7 +93,7 @@ const FIXED_TIME_STEP: Duration = Duration::from_millis(16);
         width: size.width,
         height: size.height,
         alpha_mode: CompositeAlphaMode::Auto,
-        present_mode: PresentMode::Fifo, 
+        present_mode: PresentMode::Fifo,
       };
       surface.configure(&device, &config);
 
@@ -99,7 +105,7 @@ const FIXED_TIME_STEP: Duration = Duration::from_millis(16);
         mip_level_count: 1,
         sample_count: 1,
         dimension: wgpu::TextureDimension::D2,
-        format: config.format.into(),//wgpu::TextureFormat::Bgra8UnormSrgb,
+        format: config.format,//wgpu::TextureFormat::Bgra8UnormSrgb,
         usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_DST | wgpu::TextureUsages::COPY_SRC,
         label: None,
       };
@@ -135,7 +141,7 @@ const FIXED_TIME_STEP: Duration = Duration::from_millis(16);
     let rt_0_view = rt_0.create_view(&Default::default());
     let rt_1_view = rt_1.create_view(&Default::default());
     let rt_2_view = rt_2.create_view(&Default::default());
-    let rt_3_view = rt_3.create_view(&texture_view_descriptor);
+    let _rt_3_view = rt_3.create_view(&texture_view_descriptor);
 
     let render_texture_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
       label: None,
@@ -158,7 +164,7 @@ const FIXED_TIME_STEP: Duration = Duration::from_millis(16);
         source: wgpu::ShaderSource::Wgsl(include_str!("not_menger.wgsl").into()),
     });
 
-    let mut uniforms = Uniforms { resolution: [size.width.clone() as _, size.height.clone() as _], time: 0., i_pass: 0 };
+    let mut uniforms = Uniforms { resolution: [size.width as _, size.height as _], time: 0., i_pass: 0 };
     let time = Instant::now();
     let uniforms_buffer = device.create_buffer_init(&BufferInitDescriptor {
         label: None,
@@ -310,7 +316,7 @@ const FIXED_TIME_STEP: Duration = Duration::from_millis(16);
           module: &fragment_shader,
           entry_point: "fs_main",
           targets: &[Some(wgpu::ColorTargetState {
-            format: config.format.into(),
+            format: config.format,
             blend: Some(wgpu::BlendState::ALPHA_BLENDING),
             write_mask: wgpu::ColorWrites::ALL,
         })],        
@@ -409,8 +415,7 @@ const FIXED_TIME_STEP: Duration = Duration::from_millis(16);
               while let Some(command) = command_buffer.next_command() {
                   match command {
                       Command::Quit => {
-                          println!("framecount: {}",frame_count);
-                          *control_flow = ControlFlow::Exit
+                          *control_flow = quit()
                       }
                       Command::Play => {
                           println!("Play");
@@ -460,8 +465,35 @@ const FIXED_TIME_STEP: Duration = Duration::from_millis(16);
                 command_buffer.add_command(command);
             }
         }
+        // handle mouse input here
+        Event::WindowEvent {
+            event: WindowEvent::CursorMoved { position, .. },
+            ..
+        } => {
+            println!("Mouse moved to ({:?})", position);
+        }
+        // handle mouse button input here
+        Event::WindowEvent {
+          event: WindowEvent::MouseInput { state, button, .. },
+          ..
+      } => {
+          println!("Mouse button {:?} is {:?} at {:?}", button, state, Instant::now());
+      }
+      // handle mouse wheel input here
+      Event::WindowEvent {
+          event: WindowEvent::MouseWheel { delta, .. },
+          ..
+      } => {
+          println!("Mouse wheel moved {:?} at {:?}", delta, Instant::now());
+      }
+
         _ => (),
         }
+
         
     });
+}
+
+fn quit () -> ControlFlow {
+  ControlFlow::Exit
 }
