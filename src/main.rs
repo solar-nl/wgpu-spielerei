@@ -1,4 +1,4 @@
-use wgpu::{*, util::{BufferInitDescriptor, DeviceExt}};
+use wgpu::{*, util::{BufferInitDescriptor, DeviceExt,}};
 
 use winit::{
     event::*,
@@ -67,8 +67,11 @@ fn initialize_window(event_loop: &EventLoop<()>) -> Window {
 
     let mut _playback_volume: f32 = 1.0;
 
-    let instance = wgpu::Instance::new(wgpu::Backends::all());
-    let surface = unsafe { instance.create_surface(&window) };
+    let instance = Instance::new(wgpu::InstanceDescriptor {
+      backends: wgpu::Backends::all(),
+      dx12_shader_compiler: wgpu::Dx12Compiler::Fxc,
+    });    
+    let surface = unsafe { instance.create_surface(&window) }.unwrap();
     let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
         power_preference: wgpu::PowerPreference::default(),
         compatible_surface: Some(&surface),
@@ -87,14 +90,28 @@ fn initialize_window(event_loop: &EventLoop<()>) -> Window {
      .unwrap();
  
      let size = window.inner_size();
-     let config = SurfaceConfiguration {
-        usage: TextureUsages::RENDER_ATTACHMENT,
-        format: surface.get_supported_formats(&adapter)[0],
-        width: size.width,
-        height: size.height,
-        alpha_mode: CompositeAlphaMode::Auto,
-        present_mode: PresentMode::Fifo,
-      };
+
+     let surface_caps = surface.get_capabilities(&adapter);
+     // Shader code in this tutorial assumes an Srgb surface texture. Using a different
+     // one will result all the colors comming out darker. If you want to support non
+     // Srgb surfaces, you'll need to account for that when drawing to the frame.
+     let surface_format = surface_caps.formats.iter()
+         .copied()
+         .filter(|f| f.is_srgb())
+         .next()
+         .unwrap_or(surface_caps.formats[0]);
+     let config = wgpu::SurfaceConfiguration {
+         usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+         format: surface_format,
+         width: size.width,
+         height: size.height,
+         present_mode: surface_caps.present_modes[0],
+         alpha_mode: surface_caps.alpha_modes[0],
+         view_formats: vec![],
+     };
+     
+
+      
       surface.configure(&device, &config);
 
       let solar_logo_bytes = include_bytes!("solar_groot.jpg");
@@ -108,6 +125,7 @@ fn initialize_window(event_loop: &EventLoop<()>) -> Window {
         format: config.format,//wgpu::TextureFormat::Bgra8UnormSrgb,
         usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_DST | wgpu::TextureUsages::COPY_SRC,
         label: None,
+        view_formats: &[], // Default
       };
 
       let texture_view_descriptor: TextureViewDescriptor = wgpu::TextureViewDescriptor {

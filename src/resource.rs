@@ -32,6 +32,7 @@ impl Texture {
           dimension: wgpu::TextureDimension::D2,
           format: wgpu::TextureFormat::Rgba8UnormSrgb,
           usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+          view_formats: &[wgpu::TextureFormat::Rgba8Unorm],
         });
 
         queue.write_texture(
@@ -44,8 +45,8 @@ impl Texture {
           &colorbuffer,
           wgpu::ImageDataLayout {
             offset: 0,
-            bytes_per_row: NonZeroU32::new(4 * img.dimensions().0),
-            rows_per_image: NonZeroU32::new(img.dimensions().1),
+            bytes_per_row: Some(NonZeroU32::new(4 * img.dimensions().0).unwrap().into()),
+            rows_per_image: Some(NonZeroU32::new(img.dimensions().1).unwrap().into()),
           },
           size,
         );

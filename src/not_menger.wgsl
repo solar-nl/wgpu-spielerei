@@ -20,19 +20,14 @@ fn vs_main(
     return out;
 }
 
-struct VertexOutput {
-    @builtin(position) position: vec4<f32>,
-    @location(0) tex_coords: vec2<f32>,
-};
-
 struct Uniforms {
     resolution : vec2<f32>,
     time : f32,
     i_pass : i32,
 };
 
-let epsilon = 0.0001;
-let pi = 3.1415926539;
+const epsilon = 0.0001;
+const pi = 3.1415926539;
 
 @group(0) @binding(0) var<uniform> u: Uniforms;
 @group(0) @binding(1) var samp : sampler;
