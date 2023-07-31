@@ -6,25 +6,25 @@ pub enum Command {
     PlayForward,
     PlayReverse,
     DebugDraw,
-/*
-    IncreaseVolume,
-    DecreaseVolume,
-*/
-    Quit
+    /*
+        IncreaseVolume,
+        DecreaseVolume,
+    */
+    Quit,
 }
 
 pub struct CommandBuffer {
-    commands:VecDeque<Command>
+    commands: VecDeque<Command>,
 }
 
 impl CommandBuffer {
     pub fn new() -> Self {
         Self {
-            commands: VecDeque::new()
+            commands: VecDeque::new(),
         }
     }
 
-    pub fn add_command(&mut self, command:Command) {
+    pub fn add_command(&mut self, command: Command) {
         self.commands.push_back(command);
     }
 

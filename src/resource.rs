@@ -1,6 +1,6 @@
 use anyhow::*;
-use std::num::NonZeroU32;
 use image::GenericImageView;
+use std::num::NonZeroU32;
 
 pub struct Texture {
     pub texture: wgpu::Texture,
@@ -19,36 +19,36 @@ impl Texture {
         let colorbuffer = img.to_rgba8();
 
         let size = wgpu::Extent3d {
-          width: img.dimensions().0,
-          height: img.dimensions().1,
-          depth_or_array_layers: 1,
+            width: img.dimensions().0,
+            height: img.dimensions().1,
+            depth_or_array_layers: 1,
         };
 
         let texture = device.create_texture(&wgpu::TextureDescriptor {
-          label,
-          size,
-          mip_level_count: 1,
-          sample_count: 1,
-          dimension: wgpu::TextureDimension::D2,
-          format: wgpu::TextureFormat::Rgba8UnormSrgb,
-          usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-          view_formats: &[wgpu::TextureFormat::Rgba8Unorm],
+            label,
+            size,
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba8UnormSrgb,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            view_formats: &[wgpu::TextureFormat::Rgba8Unorm],
         });
 
         queue.write_texture(
-          wgpu::ImageCopyTexture {
-            aspect: wgpu::TextureAspect::All,
-            texture: &texture,
-            mip_level: 0,
-            origin: wgpu::Origin3d::ZERO,
-          },
-          &colorbuffer,
-          wgpu::ImageDataLayout {
-            offset: 0,
-            bytes_per_row: Some(NonZeroU32::new(4 * img.dimensions().0).unwrap().into()),
-            rows_per_image: Some(NonZeroU32::new(img.dimensions().1).unwrap().into()),
-          },
-          size,
+            wgpu::ImageCopyTexture {
+                aspect: wgpu::TextureAspect::All,
+                texture: &texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+            },
+            &colorbuffer,
+            wgpu::ImageDataLayout {
+                offset: 0,
+                bytes_per_row: Some(NonZeroU32::new(4 * img.dimensions().0).unwrap().into()),
+                rows_per_image: Some(NonZeroU32::new(img.dimensions().1).unwrap().into()),
+            },
+            size,
         );
 
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
