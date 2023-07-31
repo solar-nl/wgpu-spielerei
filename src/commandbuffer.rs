@@ -1,15 +1,6 @@
 use std::collections::VecDeque;
 
 pub enum Command {
-    Play,
-    Pause,
-    PlayForward,
-    PlayReverse,
-    DebugDraw,
-    /*
-        IncreaseVolume,
-        DecreaseVolume,
-    */
     Quit,
 }
 

@@ -27,15 +27,6 @@ fn handle_keyboard_input(input: KeyboardInput) -> Option<Command> {
     if input.state == ElementState::Released {
         match input.virtual_keycode {
             Some(VirtualKeyCode::Escape) => Some(Command::Quit),
-            Some(VirtualKeyCode::J) => Some(Command::PlayReverse),
-            Some(VirtualKeyCode::K) => Some(Command::Pause),
-            Some(VirtualKeyCode::L) => Some(Command::PlayForward),
-            Some(VirtualKeyCode::Space) => Some(Command::Play),
-            Some(VirtualKeyCode::Grave) => Some(Command::DebugDraw),
-            /*
-                      Some(VirtualKeyCode::Up) => Some(Command::IncreaseVolume),
-                      Some(VirtualKeyCode::Down) => Some(Command::DecreaseVolume),
-            */
             _ => None,
         }
     } else {
@@ -444,22 +435,6 @@ fn main() {
                 while let Some(command) = command_buffer.next_command() {
                     match command {
                         Command::Quit => *control_flow = ControlFlow::Exit,
-                        Command::Play => {
-                            println!("Play");
-                            println!("framecount: {}", frame_count);
-                        }
-                        Command::DebugDraw => {
-                            println!("DebugDraw")
-                        }
-                        Command::Pause => {
-                            println!("Pause!")
-                        }
-                        Command::PlayForward => {
-                            println!("PlayForward!")
-                        }
-                        Command::PlayReverse => {
-                            println!("PlayReverse!")
-                        } //_ => ()
                     }
                 }
 
@@ -470,7 +445,6 @@ fn main() {
                     // Update logic here.
                     last_update_time = now;
 
-                    frame_count += 1;
                 }
 
                 window.request_redraw();
