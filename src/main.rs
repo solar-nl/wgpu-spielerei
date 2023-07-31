@@ -443,7 +443,7 @@ fn main() {
             Event::MainEventsCleared => {
                 while let Some(command) = command_buffer.next_command() {
                     match command {
-                        Command::Quit => *control_flow = quit(),
+                        Command::Quit => *control_flow = ControlFlow::Exit,
                         Command::Play => {
                             println!("Play");
                             println!("framecount: {}", frame_count);
@@ -518,8 +518,4 @@ fn main() {
             _ => (),
         }
     });
-}
-
-fn quit() -> ControlFlow {
-    ControlFlow::Exit
 }
