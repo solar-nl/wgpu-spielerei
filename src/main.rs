@@ -50,11 +50,8 @@ fn main() {
     let event_loop = EventLoop::new(); // Loop provided by winit for handling window events
     let window = initialize_window(&event_loop);
 
-    let mut frame_count = 0;
     let mut command_buffer = CommandBuffer::new();
     let mut last_update_time = Instant::now();
-
-    let mut _playback_volume: f32 = 1.0;
 
     let instance = Instance::new(wgpu::InstanceDescriptor {
         backends: wgpu::Backends::all(),
@@ -76,16 +73,14 @@ fn main() {
             features: wgpu::Features::empty(),
             limits: wgpu::Limits::default(),
         },
-        None, // Trace path
+        None, 
     ))
     .unwrap();
 
     let size = window.inner_size();
 
     let surface_caps = surface.get_capabilities(&adapter);
-    // Shader code in this tutorial assumes an Srgb surface texture. Using a different
-    // one will result all the colors comming out darker. If you want to support non
-    // Srgb surfaces, you'll need to account for that when drawing to the frame.
+
     let surface_format = surface_caps
         .formats
         .iter()
@@ -117,18 +112,18 @@ fn main() {
         mip_level_count: 1,
         sample_count: 1,
         dimension: wgpu::TextureDimension::D2,
-        format: config.format, //wgpu::TextureFormat::Bgra8UnormSrgb,
+        format: config.format, 
         usage: wgpu::TextureUsages::TEXTURE_BINDING
             | wgpu::TextureUsages::RENDER_ATTACHMENT
             | wgpu::TextureUsages::COPY_DST
             | wgpu::TextureUsages::COPY_SRC,
         label: None,
-        view_formats: &[], // Default
+        view_formats: &[], 
     };
 
     let texture_view_descriptor: TextureViewDescriptor = wgpu::TextureViewDescriptor {
         label: None,
-        format: config.format.into(), //Some(wgpu::TextureFormat::Bgra8UnormSrgb),
+        format: config.format.into(),
         dimension: Some(wgpu::TextureViewDimension::D2),
         aspect: wgpu::TextureAspect::All,
         base_mip_level: 0,
