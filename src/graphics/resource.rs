@@ -2,6 +2,14 @@ use anyhow::*;
 use image::GenericImageView;
 use std::num::NonZeroU32;
 
+#[repr(C)]
+#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct Uniforms {
+    pub resolution: [f32; 2],
+    pub time: f32,
+    pub i_pass: i32,
+}
+
 pub struct Texture {
     pub texture: wgpu::Texture,
     pub view: wgpu::TextureView,
